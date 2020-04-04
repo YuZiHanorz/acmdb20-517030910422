@@ -22,8 +22,13 @@ public class HeapFile implements DbFile {
      *            the file that stores the on-disk backing store for this heap
      *            file.
      */
+    private File f;
+    private TupleDesc td;
+
     public HeapFile(File f, TupleDesc td) {
         // some code goes here
+        this.f = f;
+        this.td = td;
     }
 
     /**
@@ -33,7 +38,7 @@ public class HeapFile implements DbFile {
      */
     public File getFile() {
         // some code goes here
-        return null;
+        return f;
     }
 
     /**
@@ -47,7 +52,7 @@ public class HeapFile implements DbFile {
      */
     public int getId() {
         // some code goes here
-        throw new UnsupportedOperationException("implement this");
+        return f.getAbsoluteFile().hashCode();
     }
 
     /**
@@ -57,13 +62,29 @@ public class HeapFile implements DbFile {
      */
     public TupleDesc getTupleDesc() {
         // some code goes here
-        throw new UnsupportedOperationException("implement this");
+        return td;
     }
 
     // see DbFile.java for javadocs
     public Page readPage(PageId pid) {
         // some code goes here
-        return null;
+        int pgSize = BufferPool.getPageSize();
+        int offset = pid.pageNumber() * pgSize;
+        if (offset + pgSize > f.length())
+            throw new IllegalArgumentException();
+
+        byte[] bytes = new byte[pgSize];
+        HeapPage pg;
+        RandomAccessFile raf;
+        try{
+            raf = new RandomAccessFile(f, "r");
+            raf.seek(offset);
+            raf.readFully(bytes);
+            pg = new HeapPage((HeapPageId)pid, bytes);
+        } catch (IOException e){
+            throw new IllegalArgumentException();
+        }
+        return pg;
     }
 
     // see DbFile.java for javadocs
@@ -77,7 +98,7 @@ public class HeapFile implements DbFile {
      */
     public int numPages() {
         // some code goes here
-        return 0;
+        return (int)(f.length() / BufferPool.getPageSize());
     }
 
     // see DbFile.java for javadocs
@@ -96,10 +117,55 @@ public class HeapFile implements DbFile {
         // not necessary for lab1
     }
 
+
     // see DbFile.java for javadocs
     public DbFileIterator iterator(TransactionId tid) {
         // some code goes here
-        return null;
+        return new DbFileIterator() {
+            private int curPgNo = 0;
+            private Iterator<Tuple> tupleIterator;
+
+            @Override
+            public void open() throws DbException, TransactionAbortedException {
+                curPgNo = 0;
+                PageId pid = new HeapPageId(getId(), curPgNo);
+                HeapPage curPg = (HeapPage) Database.getBufferPool().getPage(tid, pid, Permissions.READ_WRITE);
+                tupleIterator = curPg.iterator();
+            }
+
+            @Override
+            public boolean hasNext() throws DbException, TransactionAbortedException {
+                if (tupleIterator == null)
+                    return false;
+                if (tupleIterator.hasNext() || curPgNo + 1 < numPages())
+                    return true;
+                return false;
+            }
+
+            @Override
+            public Tuple next() throws DbException, TransactionAbortedException, NoSuchElementException {
+                if (tupleIterator == null)
+                    throw new NoSuchElementException();
+                if (tupleIterator.hasNext())
+                    return tupleIterator.next();
+                ++curPgNo;
+                PageId pid = new HeapPageId(getId(), curPgNo);
+                HeapPage curPg = (HeapPage) Database.getBufferPool().getPage(tid, pid, Permissions.READ_WRITE);
+                tupleIterator = curPg.iterator();
+                return tupleIterator.next();
+            }
+
+            @Override
+            public void rewind() throws DbException, TransactionAbortedException {
+                close();
+                open();
+            }
+
+            @Override
+            public void close() {
+                tupleIterator = null;
+            }
+        };
     }
 
 }

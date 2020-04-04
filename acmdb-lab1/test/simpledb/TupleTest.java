@@ -39,6 +39,17 @@ public class TupleTest extends SimpleDbTestBase {
     }
 
     /**
+     * Unit test for Tuple.resetTupleDesc()
+     */
+    @Test public void resetTupleDesc() {
+        TupleDesc td = Utility.getTupleDesc(5);
+        TupleDesc td2 = Utility.getTupleDesc(6);
+        Tuple tup = new Tuple(td);
+        tup.resetTupleDesc(td2);
+        assertEquals(td2, tup.getTupleDesc());
+    }
+
+    /**
      * Unit test for Tuple.getRecordId() and Tuple.setRecordId()
      */
     @Test public void modifyRecordId() {

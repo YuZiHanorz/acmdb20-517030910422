@@ -2,6 +2,8 @@ package simpledb;
 
 import java.io.*;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -31,8 +33,12 @@ public class BufferPool {
      *
      * @param numPages maximum number of pages in this buffer pool.
      */
+
+    private List<Page> cache;
+
     public BufferPool(int numPages) {
         // some code goes here
+        cache = Arrays.asList(new Page[numPages]);
     }
     
     public static int getPageSize() {
@@ -67,7 +73,21 @@ public class BufferPool {
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
         // some code goes here
-        return null;
+        int index = -1;
+        for (int i = 0; i < cache.size(); ++i){
+            Page page = cache.get(i);
+            if (page != null){
+                if (page.getId().equals(pid))
+                    return page;
+            }
+            else index = i;
+        }
+        if (index == -1)
+            throw new DbException("Need eviction");
+        //find in disk
+        Page page = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
+        cache.set(index, page);
+        return page;
     }
 
     /**
