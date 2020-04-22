@@ -200,11 +200,16 @@ public class BTreeFile implements DbFile {
 			return (BTreeLeafPage) getPage(tid, dirtypages, pid, perm);
 
 		BTreeInternalPage pg = (BTreeInternalPage) getPage(tid, dirtypages, pid, Permissions.READ_ONLY);
+		if (f == null){
+			BTreePageId nxt = pg.iterator().next().getLeftChild();
+			return findLeafPage(tid, dirtypages, nxt, perm, f);
+		}
 		BTreeEntry e = null;
 		boolean left = false;
 		for (BTreeInternalPageIterator i = (BTreeInternalPageIterator) pg.iterator(); i.hasNext();){
 			e = i.next();
-			if (f == null || e.getKey().compare(Op.GREATER_THAN_OR_EQ, f)){
+			//need to return the first leaf, and after split there may be case that left child leaf has key equal to entry key
+			if (e.getKey().compare(Op.GREATER_THAN_OR_EQ, f)){
 				left = true;
 				break;
 			}
@@ -301,7 +306,7 @@ public class BTreeFile implements DbFile {
 		updateParentPointer(tid, dirtypages, parent.getId(), page.getId());
 		updateParentPointer(tid, dirtypages, parent.getId(), newLeaf.getId());
 
-		return midF.compare(Op.GREATER_THAN_OR_EQ, field) ? page : newLeaf;
+		return midF.compare(Op.GREATER_THAN, field) ? page : newLeaf;
 	}
 
 	/**
@@ -353,7 +358,7 @@ public class BTreeFile implements DbFile {
 		updateParentPointer(tid, dirtypages, parent.getId(), page.getId());
 		updateParentPointer(tid, dirtypages, parent.getId(), newInternalPage.getId());
 
-		return midF.compare(Op.GREATER_THAN_OR_EQ, field) ? page : newInternalPage;
+		return midF.compare(Op.GREATER_THAN, field) ? page : newInternalPage;
 	}
 
 	/**

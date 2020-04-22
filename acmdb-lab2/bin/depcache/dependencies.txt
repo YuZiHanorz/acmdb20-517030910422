@@ -1349,9 +1349,7 @@ simpledb.DbFile
 java.lang.IllegalArgumentException
 simpledb.BTreeEntry
 java.util.HashMap
-java.lang.System
 simpledb.Predicate
-java.io.PrintStream
 simpledb.BTreeLeafPage
 java.io.BufferedOutputStream
 simpledb.BTreeFile
