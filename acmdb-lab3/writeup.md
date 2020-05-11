@@ -13,4 +13,4 @@ No API changes.
 No missing or incomplete element
 
 ## time spent and difficult/confusing parts
-It takes me about 2 days to finish lab 2. The most difficult part may be debug. 
+It takes me about 2 days to finish lab 3. The most difficult part may be debug. 
