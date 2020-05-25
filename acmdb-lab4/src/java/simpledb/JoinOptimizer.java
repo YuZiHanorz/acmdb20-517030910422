@@ -111,7 +111,7 @@ public class JoinOptimizer {
             // HINT: You may need to use the variable "j" if you implemented
             // a join algorithm that's more complicated than a basic
             // nested-loops join.
-            return -1.0;
+            return cost1 + card1 * cost2 + card1 * card2;
         }
     }
 
@@ -157,6 +157,23 @@ public class JoinOptimizer {
             Map<String, Integer> tableAliasToId) {
         int card = 1;
         // some code goes here
+        switch (joinOp){
+            case EQUALS:
+                if (t1pkey && t2pkey)
+                    card = Integer.min(card1, card2);
+                else if (t1pkey)
+                    card = card2;
+                else if (t2pkey)
+                    card = card1;
+                else
+                    card = Integer.max(card1, card2);
+                break;
+            case LESS_THAN_OR_EQ: case LESS_THAN: case GREATER_THAN_OR_EQ: case GREATER_THAN:
+                card = (int) (card1 * card2 * 0.3);
+                break;
+            default:
+                card = card1 * card2;
+        }
         return card <= 0 ? 1 : card;
     }
 
@@ -221,7 +238,24 @@ public class JoinOptimizer {
 
         // some code goes here
         //Replace the following
-        return joins;
+        CostCard bestPlan;
+        PlanCache planCache = new PlanCache();
+        for (int i = 1; i <= joins.size(); ++i) {
+            Set<Set<LogicalJoinNode>> subsets = enumerateSubsets(joins, i);
+            for (Set<LogicalJoinNode> s : subsets) {
+                bestPlan = null;
+                for (LogicalJoinNode ss : s) {
+                    CostCard plan = computeCostAndCardOfSubplan(stats, filterSelectivities, ss, s,
+                            bestPlan == null ? Double.MAX_VALUE : bestPlan.cost, planCache);
+                    if (plan != null)
+                        bestPlan = plan;
+                }
+                if (bestPlan != null)
+                    planCache.addPlan(s, bestPlan.cost, bestPlan.card, bestPlan.plan);
+            }
+
+        }
+        return planCache.getOrder(new HashSet<>(joins));
     }
 
     // ===================== Private Methods =================================

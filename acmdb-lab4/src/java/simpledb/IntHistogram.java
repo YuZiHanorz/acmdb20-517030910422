@@ -4,6 +4,10 @@ package simpledb;
  */
 public class IntHistogram {
 
+    private int bucketNum, min, max, w;
+    private int buckets[];
+    private int nTup;
+
     /**
      * Create a new IntHistogram.
      * 
@@ -22,6 +26,12 @@ public class IntHistogram {
      */
     public IntHistogram(int buckets, int min, int max) {
     	// some code goes here
+        this.bucketNum = buckets;
+        this.min = min;
+        this.max = max;
+        this.w = (max - min + buckets) / buckets;
+        this.buckets = new int[buckets];
+        this.nTup = 0;
     }
 
     /**
@@ -30,6 +40,8 @@ public class IntHistogram {
      */
     public void addValue(int v) {
     	// some code goes here
+        ++nTup;
+        ++buckets[(v - min) / w];
     }
 
     /**
@@ -45,7 +57,44 @@ public class IntHistogram {
     public double estimateSelectivity(Predicate.Op op, int v) {
 
     	// some code goes here
-        return -1.0;
+        int b = (v - min) / w;
+        double sel = 0.0;
+        double b_part = 0.0;
+        switch (op){
+            case EQUALS:
+                if (v < min || v > max)
+                    return 0.0;
+                return buckets[b] * 1.0 / w / nTup;
+            case NOT_EQUALS:
+                return 1 - estimateSelectivity(Predicate.Op.EQUALS, v);
+            case LESS_THAN:
+                if (v <= min)
+                    return 0.0;
+                if (v > max)
+                    return 1.0;
+                for (int i = 0; i < b; ++i)
+                    sel += buckets[i];
+                b_part = (v - (min + b * w)) * 1.0 / w;
+                sel += buckets[b] * b_part;
+                return sel / nTup;
+            case LESS_THAN_OR_EQ:
+                return estimateSelectivity(Predicate.Op.LESS_THAN, v+1);
+            case GREATER_THAN:
+                if (v >= max)
+                    return 0.0;
+                if (v < min)
+                    return 1.0;
+                for (int i = b + 1; i < bucketNum; ++i)
+                    sel += buckets[i];
+                b_part = ((min + (b + 1) * w) - 1 - v) * 1.0 / w;
+                sel += buckets[b] * b_part;
+                return sel / nTup;
+            case GREATER_THAN_OR_EQ:
+                return estimateSelectivity(Predicate.Op.GREATER_THAN, v - 1);
+            default:
+                break;
+        }
+        throw new RuntimeException("Why I enter here when estimateSelectivity");
     }
     
     /**
