@@ -304,45 +304,50 @@ public class BufferPool {
      * @param t the tuple to add
      */
     public void insertTuple(TransactionId tid, int tableId, Tuple t)
-            throws DbException, IOException, TransactionAbortedException {
+        throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
-        ArrayList<Page> pages = Database.getCatalog().getDatabaseFile(tableId).insertTuple(tid, t);
-        handleDirty(tid, pages);
+        ArrayList<Page> pageList = Database.getCatalog().getDatabaseFile(tableId).insertTuple(tid, t);
+        for (Page page : pageList){
+            PageId pid = page.getId();
+            if (!cache.containsKey(pid)){
+                while (cache.size() >= numPages)
+                    evictPage();
+                cache.put(pid, page);
+            }
+            page.markDirty(true, tid);
+            //updateLRU(pid);
+        }
     }
 
     /**
      * Remove the specified tuple from the buffer pool.
      * Will acquire a write lock on the page the tuple is removed from and any
      * other pages that are updated. May block if the lock(s) cannot be acquired.
-     * <p>
+     *
      * Marks any pages that were dirtied by the operation as dirty by calling
      * their markDirty bit, and adds versions of any pages that have
      * been dirtied to the cache (replacing any existing versions of those pages) so
      * that future requests see up-to-date pages.
      *
      * @param tid the transaction deleting the tuple.
-     * @param t   the tuple to delete
+     * @param t the tuple to delete
      */
-    public void deleteTuple(TransactionId tid, Tuple t)
-            throws DbException, IOException, TransactionAbortedException {
+    public  void deleteTuple(TransactionId tid, Tuple t)
+        throws DbException, IOException, TransactionAbortedException {
         // some code goes here
         // not necessary for lab1
         int tableId = t.getRecordId().getPageId().getTableId();
-
-        ArrayList<Page> pages = Database.getCatalog().getDatabaseFile(tableId).deleteTuple(tid, t);
-        handleDirty(tid, pages);
-
-    }
-
-    private void handleDirty(TransactionId tid, List<Page> dirtypages) throws DbException {
-        for (Page page : dirtypages) {
+        ArrayList<Page> pageList = Database.getCatalog().getDatabaseFile(tableId).deleteTuple(tid, t);
+        for (Page page : pageList){
             PageId pid = page.getId();
-            while (!cache.containsKey(pid) && cache.size() >= numPages) {
-                evictPage();
+            if (!cache.containsKey(pid)){
+                while (cache.size() >= numPages)
+                    evictPage();
+                cache.put(pid, page);
             }
             page.markDirty(true, tid);
-            cache.put(pid, page);
+            //updateLRU(pid);
         }
     }
 
@@ -369,7 +374,15 @@ public class BufferPool {
     public synchronized void discardPage(PageId pid) {
         // some code goes here
         // not necessary for lab1
-        remove(pid);
+        if (!cache.containsKey(pid))
+            return;
+        /*try {
+            flushPage(pid);
+        } catch (IOException e){
+            e.printStackTrace();
+        }*/
+        cache.remove(pid);
+        //LRU.remove(pid);
     }
 
     /**
@@ -399,32 +412,43 @@ public class BufferPool {
      * Discards a page from the buffer pool.
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
-    private synchronized void evictPage() throws DbException {
+    private synchronized  void evictPage() throws DbException {
         // some code goes here
         // not necessary for lab1
-        for (Map.Entry<PageId, Page> entry : cache.entrySet()) {
-            PageId pid = entry.getKey();
+        /*boolean flag = true;
+        Map.Entry<PageId, Integer> lru = null;
+        for (Map.Entry<PageId, Integer> cur : LRU.entrySet()){
+            if (flag){
+                lru = cur;
+                flag = false;
+            }
+            else if (lru.getValue() > cur.getValue())
+                lru = cur;
+        }
+        PageId pid = lru.getKey();
+        try {
+            flushPage(pid);
+        } catch (IOException e){
+            e.printStackTrace();
+        }
+        cache.remove(pid);
+        LRU.remove(pid);*/
+        for (Map.Entry<PageId, Page> e : cache.entrySet()){
+            PageId pid = e.getKey();
             synchronized (cache.get(pid)) {
-                if (cache.get(pid).isDirty() == null) {
-                    evict(pid);
+                if (cache.get(pid).isDirty() == null){
+                    try {
+                        flushPage(pid);
+                    }
+                    catch (IOException err){
+                        err.printStackTrace();
+                    }
+                    cache.remove(pid);
                     return;
                 }
             }
         }
-        throw new DbException("None page can be evicted for NO STEAL POLICY!");
-    }
-
-    private void evict(PageId pid) {
-        try {
-            flushPage(pid);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        remove(pid);
-    }
-
-    private void remove(PageId pid){
-        cache.remove(pid);
+        throw new DbException("NO STEAL Policy fail");
     }
 
 }
