@@ -216,7 +216,7 @@
     </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1590419575872" />
+    <property name="com.android.tools.idea.instantapp.provision.ProvisionBeforeRunTaskProvider.myTimeStamp" value="1590419593129" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$/lib/jline-0.9.94.jar!/" />
     <property name="project.structure.last.edited" value="Libraries" />
     <property name="project.structure.proportion" value="0.0" />
@@ -249,7 +249,6 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="780" y="0" width="772" height="836" extended-state="0" />
-    <editor active="true" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" weight="0.2859155" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
