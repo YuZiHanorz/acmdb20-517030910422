@@ -191,9 +191,11 @@ public class BufferPool {
         }
 
         while (!requestLock){
+            Thread.yield();
             dGraph.update(tid, pid);
             if (dGraph.hasCycle(tid))
                 throw new TransactionAbortedException();
+            Thread.yield();
             synchronized (pLockMap.get(pid)){
                 requestLock = pLockMap.get(pid).requestLock(perm, tid);
             }
